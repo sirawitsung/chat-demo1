@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: websocket-chat-server
+    runtime: python
+    buildCommand: ""
+    startCommand: python chat_server.py
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+    plan: free
+    region: oregon
