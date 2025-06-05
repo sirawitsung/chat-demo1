@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WebSocket Chat</title>
+  <style>
+    body { font-family: Arial; max-width: 600px; margin: 40px auto; }
+    #chatBox { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; background: #f9f9f9; }
+    .bubble { margin: 5px 0; padding: 10px; border-radius: 10px; max-width: 80%; position: relative; }
+    .mine { background: #dcf8c6; margin-left: auto; text-align: right; }
+    .theirs { background: #fff; margin-right: auto; text-align: left; }
+    .meta { font-size: 0.8em; color: #666; margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+  <h2>💬 WebSocket Chat</h2>
+  <input id="username" placeholder="Your name" style="width: 100%; margin-bottom: 10px;" />
+  <input id="message" placeholder="Type message..." style="width: 80%;" />
+  <button onclick="sendMessage()">Send</button>
+
+  <div id="chatBox"></div>
+
+  <script>
+    const ws = new WebSocket("wss://chat-demo1.onrender.com"); // ✅ เปลี่ยนเป็นของคุณ
+    const chatBox = document.getElementById("chatBox");
+
+    let myUsername = "";
+
+    document.getElementById("username").addEventListener("change", e => {
+      myUsername = e.target.value.trim();
+    });
+
+    ws.onopen = () => {
+      console.log("✅ WebSocket connected");
+    };
+
+    ws.onerror = (err) => {
+      console.error("❌ WebSocket error:", err);
+    };
+
+    ws.onclose = () => {
+      console.warn("⚠️ WebSocket disconnected");
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const time = new Date(data.timestamp).toLocaleTimeString();
+      const isMine = data.username === myUsername;
+
+      const div = document.createElement("div");
+      div.className = "bubble " + (isMine ? "mine" : "theirs");
+      div.innerHTML = `
+        <strong>${data.username}</strong><br/>
+        ${data.message}
+        <div class="meta">${time}</div>
+      `;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    };
+
+    function sendMessage() {
+      const username = document.getElementById("username").value.trim();
+      const message = document.getElementById("message").value.trim();
+
+      if (!username || !message) {
+        alert("กรุณาใส่ชื่อผู้ใช้และข้อความก่อนส่ง");
+        return;
+      }
+
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ username, message }));
+        document.getElementById("message").value = "";
+      } else {
+        alert("❌ ไม่สามารถส่งได้: WebSocket ยังไม่เชื่อมต่อ");
+      }
+    }
+  </script>
+</body>
+</html>

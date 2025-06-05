@@ -6,7 +6,8 @@ from datetime import datetime
 
 connected_clients = set()
 
-def save_message(username, message):
+# ✅ ฟังก์ชันสำหรับสร้างตารางในฐานข้อมูล ถ้ายังไม่มี
+def init_db():
     conn = sqlite3.connect("chat.db")
     cursor = conn.cursor()
     cursor.execute("""
@@ -17,6 +18,13 @@ def save_message(username, message):
             timestamp TEXT NOT NULL
         )
     """)
+    conn.commit()
+    conn.close()
+
+# ✅ บันทึกข้อความลง SQLite
+def save_message(username, message):
+    conn = sqlite3.connect("chat.db")
+    cursor = conn.cursor()
     timestamp = datetime.now().isoformat()
     cursor.execute("INSERT INTO messages (username, message, timestamp) VALUES (?, ?, ?)",
                    (username, message, timestamp))
@@ -24,11 +32,12 @@ def save_message(username, message):
     conn.close()
     return timestamp
 
+# ✅ WebSocket handler
 async def handler(websocket):
     connected_clients.add(websocket)
 
     try:
-        # ส่งประวัติแชทย้อนหลัง
+        # 🔄 ส่งประวัติแชทย้อนหลัง
         conn = sqlite3.connect("chat.db")
         cursor = conn.cursor()
         cursor.execute("SELECT username, message, timestamp FROM messages ORDER BY id ASC")
@@ -44,7 +53,7 @@ async def handler(websocket):
             })
             await websocket.send(history_data)
 
-        # รับข้อความใหม่
+        # 📥 รับข้อความใหม่
         async for raw_data in websocket:
             data = json.loads(raw_data)
             username = data.get("username", "Unknown")
@@ -57,17 +66,22 @@ async def handler(websocket):
                 "timestamp": timestamp
             })
 
-            for client in connected_clients:
-                await client.send(broadcast_data)
+            for client in connected_clients.copy():
+                try:
+                    await client.send(broadcast_data)
+                except:
+                    connected_clients.remove(client)
 
     except websockets.exceptions.ConnectionClosed:
         print("Client disconnected")
     finally:
         connected_clients.remove(websocket)
 
+# ✅ Main เริ่มเซิร์ฟเวอร์
 async def main():
-    async with websockets.serve(handler, "0.0.0.0", 10000):  # ใช้ 0.0.0.0 สำหรับ Render
+    init_db()  # สร้างตารางถ้ายังไม่มี
+    async with websockets.serve(handler, "0.0.0.0", 10000):
         print("✅ Chat Server running at port 10000")
-        await asyncio.Future()
+        await asyncio.Future()  # Keep running forever
 
 asyncio.run(main())
